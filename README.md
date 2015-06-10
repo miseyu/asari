@@ -1,4 +1,4 @@
-# Asari
+# Asari 1.0-Pre
 
 ## Note on 2013-01-01 Amazon API support
 
@@ -13,11 +13,17 @@ We are actively working on a 1.0 version with support for the latest api along w
 Asari is a Ruby wrapper for AWS CloudSearch, with optional ActiveRecord support
 for easy integration with your Rails apps.
 
+Note:  This version is currently under heavy development.  If you want a stable version please look aththe master branch.
+
 #### Why Asari?
 
 "Asari" is Japanese for "rummaging search." Seemed appropriate.
 
 ## Usage
+
+#### API Version
+
+Asari defaults to using the 2011-02-01 version of the API.  If you want to use the 2013-01-01 version set the CLOUDSEARCH_API_VERSION environment variable.
 
 #### Your Search Domain
 
@@ -33,15 +39,18 @@ Amazon Cloud Search will give you a Search Endpoint and Document Endpoint.  When
     asari.search("tommy", :rank => "-name") # Another way to sort the search descending
 
 
-#### Boolean Query Usage
+#### Boolean/Structured Compound Query Usage
 
     asari.search(filter: { and: { title: "donut", type: "cruller" }})
-    asari.search("boston creme", filter: { and: { title: "donut", or: { type: "cruller|twist" }}}) # Full text search and nested boolean logic
+    asari.search("boston creme", filter: { and: { title: "donut", or: { type: "cruller|twist" }}}) # Full text search and nested boolean logic 2011-02-01 API only
 
-For more information on how to use Cloudsearch boolean queries, [see the
+For more information on how to use Cloudsearch boolean queries (2011-02-01), [see the
 documentation.](http://docs.aws.amazon.com/cloudsearch/latest/developerguide/booleansearch.html)
+For more information on how to use Cloudsearch structured compound queries (2013-01-01), [see the documentation.](http://docs.aws.amazon.com/cloudsearch/latest/developerguide/searching-compound-queries.html)
 
 ### Geospatial Query Usage
+
+#### Api Version 2011-02-01
 
 While Cloudsearch does not natively support location search, you can implement rudimentary location search by representing latitude and longitude as integers in your search domain. Asari has a Geography module you can use to simplify the conversion of latitude and longitude to cartesian coordinates as well as the generation of a coordinate box to search within. Asari's Boolean Query syntax can then be used to search within the area. Note that because Cloudsearch only supports 32-bit unsigned integers, it is only possible to store latitude and longitude to two place values. This means very precise search isn't possible using Asari and Cloudsearch. 
 
@@ -56,6 +65,10 @@ While Cloudsearch does not natively support location search, you can implement r
 
 For more information on how to use Cloudsearch for location search, [see the
 documentation.](http://docs.aws.amazon.com/cloudsearch/latest/developerguide/geosearch.html)
+
+#### Api Version 2013-01-01
+
+This version has native geospacial support but will need additional integration to get it into Asari.  Pull requests are welcome :)
 
 #### Sandbox Mode
 
@@ -177,6 +190,26 @@ In the above example we decide that, instead of raising exceptions every time,
 we're going to log exception data to Airbrake so that we can review it later and
 then return true so that the AR lifecycle continues normally.
 
+While having asari auto index,  delete and update records can be handy,  it doesn't provide a great failover mechanism if you are having communication issues between your system and cloud search.  To enable delayed indexing add the following before requiring 'asari/active_record'.  
+
+    class Asari
+      module ActiveRecord
+        DELAYED_ASARI_INDEX = true
+      end
+    end
+
+You can then manually trigger deletes,  adds and updates by calling asari_remove_from_index,  asari_add_to_index and asari_update_in_index on your model.
+
+We also have support for batching updates by calling asari_add_items on a asari model object.  
+
+    user1 = User.create
+    user2 = User.create
+    User.asari_add_items [user1, user2, user3]
+
+A batch delete_items can be accomplished via asari_remove_item on a asari model object
+
+    User.asari_remove_items [1, 2, 8]
+
 #### AWS Region
 
 By default, Asari assumes that you're operating in us-east-1, which is probably
@@ -197,22 +230,102 @@ ActiveRecord model:
       ...
     end
 
+## ActiveAsari
+
+Full Active Record Integration with Asari along with migration-like indexing.  This makes using Amazon Cloud Search a lot easier in your rails application.
+
+#### Configuration
+
+Include the gem in your project.
+
+  gem 'active_asari'
+
+In your application.rb file or in the main part of your rack app.  NOTE:  The ActiveAsari.configure method needs a directory to be passed to it.  It will look for the configuration files and load them from this location.
+
+    AWS.config({:access_key_id => 'your Amazon key id', :secret_access_key => 'your Amazon secret key'})
+    require 'active_asari'
+    ACTIVE_ASARI_CONFIG, ACTIVE_ASARI_ENV = ActiveAsari.configure(File.dirname(__FILE__))
+    require 'active_asari/active_record'
+  
+There are two configuration files that active_asari looks for.  First,  active_asari_env.yml.  Right now this file is used to configure the prefix to use for your domains.  Prefixing was added so that you can have domains for multiple environments under one amazon account without having them stomp on each other.  Here is an example of a active_asari_env.yml file.
+
+    development:
+      domain_prefix: dev
+    staging:
+      domain_prefix: staging
+
+When you are in a test environment active_asari overlays are disabled.  Right now the recommended way of testing asari calls is via mocking.
+
+#### Your Domain
+
+Domains are collections of data that you can store.  ActiveAsari has taken the approach of associating a activerecord table with a domain.  So if you have a talble called events then you might create a domain of the same name.  Domain objects are specified in the active_asari_config.yml file.  Below is an example of a file.
+
+    TestModel:
+      name: 
+        index_field_type: text
+        search_enabled: true
+      amount: 
+        index_field_type: uint
+        search_enabled: true
+      last_updated:
+        index_field_type: uint
+        search_enabled: false
+      bee_larvae_type:
+        index_field_type: literal
+    HoneyBadger:
+      name:
+        index_field_type: text 
+
+The domain is the top most element in the structure.  The example above specifies two domains.  The first one has indexes for name,  amount,  last_updated and bee_larvae_type.  All active_asari fields are result enabled to allow you to retrive the result values from Amazon Cloud search.  The index_field_type specifies the Amazon Cloud Search unit type.  search_enabled specifies your ability to search on a field.  text fields are always searchable,  uint are configurable but default to searchable and literals need to be enabled if you want to be able to search them.  
+
+The ActiveAsari::Migrations class has methods to 'migrate' your cloud search instance to have domains with indexes specified in your config file.  We have a todo to add rake tasks to the gem.  In the meantime you can all migrate_all to create everything in your configuration file or migrate_domain to migrate one domain.  Both of these commands also apply to access policies you specified in your env file.  When the domain is created,  the prefix you specified is added to the domain and it is uncased similar to rails but instead of using underscores it uses -.  For example HoneyBadger in the development environment with a prefix of dev would create a domain called dev-honey-badger.
+
+#### Your Models
+
+Any model can be associated with a ActiveAsari Object.  This is done by adding the following three lines to the beginning of your model class.
+
+    include ActiveAsari::ActiveRecord
+    include Asari::ActiveRecord if !env_test?
+    active_asari_index 'YourDomain'
+
+You would substitute the appropriate domain specified in your config file.  The !env_test option was the only way to not have ActiveAsari not interfere with tests.  We would welcome pull requests to make this cleaner.
+
+Once you have this in your model,  and have run your migrations all update,  create and deletes to the model in a non_test environment will automatically be performed in AmazonCloud search keeping the two environments in sync.
+
+#### Searching 
+
+Searching is done via ActiveAsari.active_asari_search.  IE:
+
+    ActiveAsari.active_asari_search 'HoneyBadger', 'name:beavis',  :query_type => :boolean
+
+The query_type allows you to specify if you want to do a boolean or regular query.  All other options are passed directly to asari,  so see the asari gem for documentation on how to use it.  Results are automatically returned in a hash of objects indexed by the document_id.  The object contains a raw_result accessor along with accessors for all returned fields in the hash.  So...
+
+    my_result = ActiveAsari.active_asari_search 'HoneyBadger', 'beavis'
+    my_result['6'].name.should include 'beavis'
+
+Search parameters are passed directly to Amazon Cloud Search.  See it's documentation for otpions,  syntax etc..
+
 ## Get it
 
 It's a gem named asari. Install it and make it available however you prefer.
 
-Asari is developed on ruby 1.9.3, and the ActiveRecord portion has been tested
-with Rails 3.2. I don't know off-hand of any reasons that it shouldn't work in
-other environments, but be aware that it hasn't (yet) been tested.
+Asari is developed on ruby 2.1.2, and the ActiveRecord portion has been tested
+with Rails 4.1.  It has also been tested on 1.9.x and JRuby.
+
+## Roadmap
+
+Two features that we want to get into Asari are facet support and suport for native geo-coordinate support in version 2013-01-01 of the Amazon API.  Pull requests are always welcome to get this out.
 
 ## Contributions
 
-If Asari interests you and you think you might want to contribute, hit me up on
+If Asari interests you and you think you might want to contribute, hit us up on
 Github. You can also just fork it and make some changes, but there's a better
 chance that your work won't be duplicated or rendered obsolete if you check in
 on the current development status first.
 
 Gem requirements/etc. should be handled by Bundler.
+
+Also,  we have maintained close to 100% test coverage on the project.  Your pull request will have a much better chance of being accepted if you write specs for it.
 
 ### Contributors
 
@@ -221,6 +334,8 @@ Gem requirements/etc. should be handled by Bundler.
 * [Chris Vincent](https://github.com/cvincent "cvincent on GitHub")
 * [Kyle Meyer](https://github.com/kaiuhl "kaiuhl on GitHub")
 * [Brentan Alexander](https://github.com/brentan "brentan on GitHub")
+* [Playon Sports](http://company.playonsports.com/)
+* [Treehouse](http://teamtreehouse.com/)
 
 ## License
 Copyright (C) 2012 by Tommy Morgan

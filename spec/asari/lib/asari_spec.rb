@@ -1,4 +1,4 @@
-require_relative '../spec_helper'
+require_relative '../asari_spec_helper'
 
 describe "Asari" do
   before :each do
@@ -13,6 +13,12 @@ describe "Asari" do
     it "allows you to set a specific API version." do
       @asari.api_version = "2015-10-21" # WE'VE GOT TO GO BACK
       expect(@asari.api_version).to eq "2015-10-21"
+    end
+
+    it "allows you to set a specific API version via a constant." do
+      ENV['CLOUDSEARCH_API_VERSION'] = '2013-01-01'
+      expect(@asari.api_version).to eq "2013-01-01"
+      ENV['CLOUDSEARCH_API_VERSION'] = nil
     end
 
     it "allows you to set a specific aws region." do

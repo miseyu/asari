@@ -40,7 +40,7 @@ class Asari
   # CloudSearch API).
   #
   def api_version
-    @api_version || "2011-02-01"
+    @api_version || ENV['CLOUDSEARCH_API_VERSION'] || "2011-02-01" 
   end
 
   # Public: returns the current aws_region, or the sensible default of
@@ -71,10 +71,25 @@ class Asari
     page_size = options[:page_size].nil? ? 10 : options[:page_size].to_i
 
     url = "http://search-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com/#{api_version}/search"
-    url += "?q=#{CGI.escape(term.to_s)}"
-    url += "&bq=#{CGI.escape(bq)}" if options[:filter]
+
+    if api_version == '2013-01-01'
+      if options[:filter] and term != ""
+        url += "?q=#{CGI.escape("(and '#{term.to_s}' #{bq})")}"
+        url += "&q.parser=structured"
+      elsif options[:filter]
+        url += "?q=#{CGI.escape(bq)}"
+        url += "&q.parser=structured"
+      else
+        url += "?q=#{CGI.escape(term.to_s)}"
+      end
+    else
+      url += "?q=#{CGI.escape(term.to_s)}"
+      url += "&bq=#{CGI.escape(bq)}" if options[:filter]
+    end
+
+    return_statement = api_version == '2013-01-01' ? 'return' : 'return-fields'
     url += "&size=#{page_size}"
-    url += "&return-fields=#{options[:return_fields].join ','}" if options[:return_fields]
+    url += "&#{return_statement}=#{options[:return_fields].join ','}" if options[:return_fields]
 
     if options[:page]
       start = (options[:page].to_i - 1) * page_size
@@ -83,7 +98,8 @@ class Asari
 
     if options[:rank]
       rank = normalize_rank(options[:rank])
-      url << "&rank=#{rank}"
+      rank_or_sort = api_version == '2013-01-01' ? 'sort' : 'rank'
+      url << "&#{rank_or_sort}=#{CGI.escape(rank)}"
     end
 
     begin
@@ -118,13 +134,7 @@ class Asari
   #
   def add_item(id, fields)
     return nil if self.class.mode == :sandbox
-    query = { "type" => "add", "id" => id.to_s, "version" => Time.now.to_i, "lang" => "en" }
-    fields.each do |k,v|
-      fields[k] = convert_date_or_time(fields[k])
-      fields[k] = "" if v.nil?
-    end
-
-    query["fields"] = fields
+    query = create_item_query id, fields
     doc_request(query)
   end
 
@@ -163,16 +173,17 @@ class Asari
   def remove_item(id)
     return nil if self.class.mode == :sandbox
 
-    query = { "type" => "delete", "id" => id.to_s, "version" => Time.now.to_i }
+    query = remove_item_query id
     doc_request query
   end
 
   # Internal: helper method: common logic for queries against the doc endpoint.
   #
   def doc_request(query)
+    request_query = query.class.name == 'Array' ? query : [query]
     endpoint = "http://doc-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com/#{api_version}/documents/batch"
 
-    options = { :body => [query].to_json, :headers => { "Content-Type" => "application/json"} }
+    options = { :body => request_query.to_json, :headers => { "Content-Type" => "application/json"} }
 
     begin
       response = HTTParty.post(endpoint, options)
@@ -187,6 +198,22 @@ class Asari
     end
 
     nil
+  end
+
+  def create_item_query(id, fields)
+    return nil if self.class.mode == :sandbox
+    query = { "type" => "add", "id" => id.to_s, "version" => Time.now.to_i, "lang" => "en" }
+    fields.each do |k,v|
+      fields[k] = convert_date_or_time(fields[k])
+      fields[k] = "" if v.nil?
+    end
+
+    query["fields"] = fields
+    query
+  end
+
+  def remove_item_query(id)
+    { "type" => "delete", "id" => id.to_s, "version" => Time.now.to_i }
   end
 
   protected
@@ -219,13 +246,19 @@ class Asari
   def normalize_rank(rank)
     rank = Array(rank)
     rank << :asc if rank.size < 2
-    rank[1] == :desc ? "-#{rank[0]}" : rank[0]
+    
+    if api_version == '2013-01-01'
+      "#{rank[0]} #{rank[1]}"
+    else
+      rank[1] == :desc ? "-#{rank[0]}" : rank[0]
+    end
   end
 
   def convert_date_or_time(obj)
     return obj unless [Time, Date, DateTime].include?(obj.class)
     obj.to_time.to_i
   end
+
 end
 
 Asari.mode = :sandbox # default to sandbox

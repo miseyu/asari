@@ -7,13 +7,18 @@ class Asari
   # (respectively).
   #
   module ActiveRecord
+
+    DELAYED_ASARI_INDEX = false
+
     def self.included(base)
       base.extend(ClassMethods)
 
-      base.class_eval do
-        before_destroy :asari_remove_from_index
-        after_create :asari_add_to_index
-        after_update :asari_update_in_index
+      if !DELAYED_ASARI_INDEX
+        base.class_eval do
+          before_destroy :asari_remove_from_index
+          after_create :asari_add_to_index
+          after_update :asari_update_in_index
+        end
       end
     end
 
@@ -92,6 +97,32 @@ class Asari
         self.asari_on_error(e)
       end
 
+      def asari_add_items(objects)
+        amazon_items = []
+        objects.each do |object|
+          if self.asari_when and asari_should_index?(object)
+            data = self.asari_data_item object
+            amazon_items << self.asari_instance.create_item_query(object.id, data)
+          elsif !self.asari_when
+            data = self.asari_data_item object
+            amazon_items << self.asari_instance.create_item_query(object.id, data)
+          end
+        end      
+        self.asari_instance.doc_request(amazon_items) if amazon_items.size > 0
+      rescue Asari::DocumentUpdateException => e
+        self.asari_on_error(e)
+      end
+
+      def asari_remove_items(ids)
+        amazon_items = []
+        ids.each do |id|
+          amazon_items << self.asari_instance.remove_item_query(id)
+        end   
+        self.asari_instance.doc_request(amazon_items)
+      rescue Asari::DocumentUpdateException => e
+        self.asari_on_error(e)
+      end
+
       # Internal: method for updating a freshly edited item to the CloudSearch
       # index. Should probably only be called from asari_update_in_index above.
       def asari_update_item(obj)
@@ -147,9 +178,7 @@ class Asari
       #   communicating with the CloudSearch server.
       def asari_find(term, options = {})
         records = self.asari_instance.search(term, options)
-        ids = records.map { |id| id.to_i }
-
-        records.replace(Array(self.where("id in (?)", ids)))
+        records.replace(Array(self.where("id in (?)", records)))
       end
 
       # Public: method for handling errors from Asari document updates. By
