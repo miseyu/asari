@@ -8,7 +8,7 @@ class Asari
   #
   module ActiveRecord
 
-    DELAYED_ASARI_INDEX = false
+    DELAYED_ASARI_INDEX = true
 
     def self.included(base)
       base.extend(ClassMethods)
@@ -107,7 +107,7 @@ class Asari
             data = self.asari_data_item object
             amazon_items << self.asari_instance.create_item_query(object.id, data)
           end
-        end      
+        end
         self.asari_instance.doc_request(amazon_items) if amazon_items.size > 0
       rescue Asari::DocumentUpdateException => e
         self.asari_on_error(e)
@@ -117,7 +117,7 @@ class Asari
         amazon_items = []
         ids.each do |id|
           amazon_items << self.asari_instance.remove_item_query(id)
-        end   
+        end
         self.asari_instance.doc_request(amazon_items)
       rescue Asari::DocumentUpdateException => e
         self.asari_on_error(e)
@@ -169,7 +169,7 @@ class Asari
       end
 
       # Public: method for searching the index for the specified term and
-      #   returning all model objects that match. 
+      #   returning all model objects that match.
       #
       # Returns: a list of all matching AR model objects, or an empty list if no
       #   records are found that match.
