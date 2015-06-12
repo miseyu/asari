@@ -1,8 +1,8 @@
 module ActiveAsari
 
   def self.amazon_safe_domain_name(domain)
-    environment = Rails.env ? Rails.env : ENV['RACK_ENV'] 
-    "#{ACTIVE_ASARI_ENV[environment]['domain_prefix']}-#{domain.underscore.sub(/_/, '-')}"
+    environment = Rails.env ? Rails.env : ENV['RACK_ENV']
+    "#{ACTIVE_ASARI_ENV[environment]['domain_prefix']}-#{domain.underscore.gsub(/_/, '-')}"
   end
 
   def self.aws_client
