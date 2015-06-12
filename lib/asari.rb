@@ -40,7 +40,7 @@ class Asari
   # CloudSearch API).
   #
   def api_version
-    @api_version || ENV['CLOUDSEARCH_API_VERSION'] || "2011-02-01" 
+    @api_version || ENV['CLOUDSEARCH_API_VERSION'] || "2013-01-01"
   end
 
   # Public: returns the current aws_region, or the sensible default of
@@ -202,7 +202,7 @@ class Asari
 
   def create_item_query(id, fields)
     return nil if self.class.mode == :sandbox
-    query = { "type" => "add", "id" => id.to_s, "version" => Time.now.to_i, "lang" => "en" }
+    query = { "type" => "add", "id" => id.to_s, "version" => Time.now.to_i, "lang" => "ja" }
     fields.each do |k,v|
       fields[k] = convert_date_or_time(fields[k])
       fields[k] = "" if v.nil?
@@ -246,7 +246,7 @@ class Asari
   def normalize_rank(rank)
     rank = Array(rank)
     rank << :asc if rank.size < 2
-    
+
     if api_version == '2013-01-01'
       "#{rank[0]} #{rank[1]}"
     else
