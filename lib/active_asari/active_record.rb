@@ -12,9 +12,9 @@ module ActiveAsari
         (ENV['RAILS_ENV'] == 'test' or ENV['RACK_ENV'] == 'test')
       end
 
-      def active_asari_index(class_name)
-        active_asari_index_array = ACTIVE_ASARI_CONFIG[class_name].symbolize_keys.keys.concat [:active_asari_id] 
-        asari_index ActiveAsari.asari_domain_name(class_name),  active_asari_index_array if !env_test?
+      def active_asari_index(class_name, options = {})
+        active_asari_index_array = ACTIVE_ASARI_CONFIG[class_name].symbolize_keys.keys.concat [:active_asari_id]
+        asari_index ActiveAsari.asari_domain_name(class_name),  active_asari_index_array, options if !env_test?
       end
     end
   end
