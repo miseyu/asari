@@ -206,11 +206,15 @@ class Asari
 
   def create_item_query(id, fields)
     return nil if self.class.mode == :sandbox
+    result = {}
+    result['type'] = 'add'
+    result['id'] = fields['active_asari_id']
     fields.each do |k,v|
       fields[k] = convert_date_or_time(fields[k])
       fields[k] = "" if v.nil?
     end
-    { documents: fields.to_json, content_type: 'application/json' }
+    result['fields'] = fields
+    { documents: [result].to_json, content_type: 'application/json' }
   end
 
   protected
