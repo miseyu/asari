@@ -139,7 +139,8 @@ class Asari
   def add_item(id, fields)
     return nil if self.class.mode == :sandbox
     query = create_item_query id, fields
-    doc_request(query)
+    client = Aws::CloudSearchDomain::Client.new(endpoint: "http://doc-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com")
+    client.upload_documents(query)
   end
 
   # Public: Update an item in the index based on its document ID.
@@ -184,9 +185,8 @@ class Asari
   # Internal: helper method: common logic for queries against the doc endpoint.
   #
   def doc_request(query)
-    request_query = query.class.name == 'Array' ? query : [query]
-    endpoint = "http://doc-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com/#{api_version}/documents/batch"
 
+    endpoint = "http://doc-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com/#{api_version}/documents/batch"
     options = { :body => request_query.to_json, :headers => { "Content-Type" => "application/json"} }
 
     begin
@@ -206,18 +206,11 @@ class Asari
 
   def create_item_query(id, fields)
     return nil if self.class.mode == :sandbox
-    query = { "type" => "add", "id" => id.to_s, "version" => Time.now.to_i, "lang" => "ja" }
     fields.each do |k,v|
       fields[k] = convert_date_or_time(fields[k])
       fields[k] = "" if v.nil?
     end
-
-    query["fields"] = fields
-    query
-  end
-
-  def remove_item_query(id)
-    { "type" => "delete", "id" => id.to_s, "version" => Time.now.to_i }
+    { documents: fields.to_json, content_type: 'application/json' }
   end
 
   protected
