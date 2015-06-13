@@ -213,7 +213,7 @@ class Asari
       fields[k] = convert_date_or_time(fields[k])
       fields[k] = "" if v.nil?
     end
-    result['fields'] = fields
+    result[:fields] = fields
     { documents: [result].to_json, content_type: 'application/json' }
   end
 
