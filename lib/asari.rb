@@ -1,3 +1,7 @@
+require 'aws-sdk-resources'
+require 'ox'
+require 'oj'
+
 require "asari/version"
 
 require "asari/collection"
