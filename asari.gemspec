@@ -24,7 +24,8 @@ Gem::Specification.new do |s|
   # s.add_runtime_dependency "rest-client"
 
   s.add_runtime_dependency "httparty"
-  s.add_runtime_dependency "aws-sdk"
+  s.add_runtime_dependency 'aws-sdk-resources', '~> 2'
+  s.add_runtime_dependency 'ox'
 
   s.add_development_dependency "rake"
   s.add_development_dependency "rspec"
@@ -35,6 +36,6 @@ Gem::Specification.new do |s|
   if RUBY_ENGINE == 'jruby'
     s.add_development_dependency "activerecord-jdbcsqlite3-adapter"
   else
-    s.add_development_dependency "sqlite3" 
+    s.add_development_dependency "sqlite3"
   end
 end
