@@ -26,6 +26,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "httparty"
   s.add_runtime_dependency 'aws-sdk-resources', '~> 2'
   s.add_runtime_dependency 'ox'
+  s.add_runtime_dependency 'oj'
 
   s.add_development_dependency "rake"
   s.add_development_dependency "rspec"
