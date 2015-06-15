@@ -182,8 +182,14 @@ class Asari
           sub_query = reduce.call(value)
           memo += "(#{key}#{sub_query})" unless sub_query.empty?
         else
-          if value.is_a?(Range) || value.is_a?(Integer)
+          if value.is_a?(Integer)
             memo += " #{key}:#{value}"
+          elsif value.is_a?(Range)
+            if value.first.is_a?(Time)
+              memo += " #{key}:[#{convert_date_or_time(value.first)},#{convert_date_or_time(value.last)}]"
+            else
+              memo += " #{key}:#{value.to_a.to_s}"
+            end
           elsif value.is_a?(String) && value =~ /\A\d*\.\.\d*\Z/
             memo += " #{key}:#{value}"
           elsif !value.to_s.empty?
