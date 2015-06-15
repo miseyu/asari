@@ -57,7 +57,6 @@ class Asari
   #
   # Examples:
   #
-  #     @asari.search("fritters") #=> ["13","28"]
   #     @asari.search(filter: { and: { type: 'donuts' }}) #=> ["13,"28","35","50"]
   #     @asari.search("fritters", filter: { and: { type: 'donuts' }}) #=> ["13"]
   #
@@ -67,7 +66,7 @@ class Asari
   #
   # Raises: SearchException if there's an issue communicating the request to
   #   the server.
-  def search(term, options = {})
+  def search(options = {})
     return Asari::Collection.sandbox_fake if self.class.mode == :sandbox
     client = Aws::CloudSearchDomain::Client.new(endpoint: "http://search-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com")
     query_options = { query_parser: 'structured', query: boolean_query(options[:filter]) }

@@ -8,18 +8,8 @@ class Asari
   #
   module ActiveRecord
 
-    DELAYED_ASARI_INDEX = true
-
     def self.included(base)
       base.extend(ClassMethods)
-
-      if !DELAYED_ASARI_INDEX
-        base.class_eval do
-          before_destroy :asari_remove_from_index
-          after_create :asari_add_to_index
-          after_update :asari_update_in_index
-        end
-      end
     end
 
     def asari_remove_from_index
@@ -176,9 +166,8 @@ class Asari
       #
       # Raises: an Asari::SearchException error if there are issues
       #   communicating with the CloudSearch server.
-      def asari_find(term, options = {})
-        records = self.asari_instance.search(term, options)
-        records.replace(Array(self.where("id in (?)", records)))
+      def asari_find(options = {})
+        self.asari_instance.search(options)
       end
 
       # Public: method for handling errors from Asari document updates. By
