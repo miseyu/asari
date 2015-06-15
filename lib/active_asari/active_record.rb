@@ -1,8 +1,6 @@
 module ActiveAsari
   module ActiveRecord
 
-    alias_attribute :active_asari_id, :id
-
     def self.included(base)
       base.extend(ClassMethods)
     end
@@ -13,7 +11,9 @@ module ActiveAsari
       end
 
       def active_asari_index(class_name, options = {})
-        active_asari_index_array = ACTIVE_ASARI_CONFIG[class_name].symbolize_keys.keys.concat [:active_asari_id]
+        attr_accessor :id
+        active_asari_index_array = ACTIVE_ASARI_CONFIG[class_name].symbolize_keys.keys
+        attr_accessor *active_asari_index_array
         asari_index ActiveAsari.asari_domain_name(class_name),  active_asari_index_array, options if !env_test?
       end
     end

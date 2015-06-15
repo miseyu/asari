@@ -3,7 +3,7 @@ module ActiveAsari
 
     attr_accessor :connection
 
-    def initialize 
+    def initialize
       self.connection = AWS::CloudSearch::Client::V20130101.new
     end
 
@@ -17,16 +17,15 @@ module ActiveAsari
       ACTIVE_ASARI_CONFIG[domain].each do |field|
         create_index_field domain, field.first => field.last
       end
-      create_index_field domain, 'active_asari_id' => {'index_field_type' => 'int', 'return_enabled' => true}
       connection.index_documents :domain_name => ActiveAsari.amazon_safe_domain_name(domain)
     end
 
     def update_service_access_policies(domain)
       policy_array = []
-      asari_env = ENV['RAILS_ENV'] ? ENV['RAILS_ENV'] : ENV['RACK_ENV'] 
+      asari_env = ENV['RAILS_ENV'] ? ENV['RAILS_ENV'] : ENV['RACK_ENV']
       resource = "arn:aws:cloudsearch:us-east-1:#{ACTIVE_ASARI_ENV[asari_env]['account']}:domain/*"
       ACTIVE_ASARI_ENV[asari_env]['access_permissions'].each do |permission|
-        policy_array << {:Effect => :Allow, :Action => 'cloudsearch:*', :Resource => resource, :Condition => {:IpAddress => {'aws:SourceIp' => [permission['ip_address']]}}} 
+        policy_array << {:Effect => :Allow, :Action => 'cloudsearch:*', :Resource => resource, :Condition => {:IpAddress => {'aws:SourceIp' => [permission['ip_address']]}}}
       end
       access_policies = {:Statement => policy_array}
       connection.update_service_access_policies :domain_name => domain, :access_policies => access_policies.to_json

@@ -17,7 +17,6 @@ class Hasher
       active_asari_index_array.each do |key, value|
         final_hash[key] = hash[key]
       end
-      final_hash[:active_asari_id] = hash[:active_asari_id]
       final_hash
     end
 
@@ -28,10 +27,9 @@ class Hasher
     def update_index(domain, hash)
       common_index domain, hash, 'update_item'
     end
-    
-    def delete_item(domain, active_asari_id)
+
+    def delete_item(domain)
       domain_instance = get_domain_instance(domain)
-      domain_instance.delete_item active_asari_id
     end
 
     private
@@ -39,7 +37,6 @@ class Hasher
     def common_index(domain, hash, command)
       domain_instance = get_domain_instance(domain)
       asari_hash = create_active_asari_hash domain, hash
-      domain_instance.send command, asari_hash[:active_asari_id], asari_hash
     end
   end
 end

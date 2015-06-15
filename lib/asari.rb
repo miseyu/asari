@@ -69,56 +69,15 @@ class Asari
   #   the server.
   def search(term, options = {})
     return Asari::Collection.sandbox_fake if self.class.mode == :sandbox
-    term,options = "",term if term.is_a?(Hash) and options.empty?
-
-    bq = boolean_query(options[:filter]) if options[:filter]
-    page_size = options[:page_size].nil? ? 10 : options[:page_size].to_i
-
-    url = "http://search-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com/#{api_version}/search"
-
-    if api_version == '2013-01-01'
-      if options[:filter] and term != ""
-        url += "?q=#{CGI.escape("(and '#{term.to_s}' #{bq})")}"
-        url += "&q.parser=structured"
-      elsif options[:filter]
-        url += "?q=#{CGI.escape(bq)}"
-        url += "&q.parser=structured"
-      else
-        url += "?q=#{CGI.escape(term.to_s)}"
-      end
-    else
-      url += "?q=#{CGI.escape(term.to_s)}"
-      url += "&bq=#{CGI.escape(bq)}" if options[:filter]
-    end
-
-    return_statement = api_version == '2013-01-01' ? 'return' : 'return-fields'
-    url += "&size=#{page_size}"
-    url += "&#{return_statement}=#{options[:return_fields].join ','}" if options[:return_fields]
+    client = Aws::CloudSearchDomain::Client.new(endpoint: "http://search-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com")
+    query_options = { query_parser: 'structured', query: boolean_query(options[:filter]) }
 
     if options[:page]
-      start = (options[:page].to_i - 1) * page_size
-      url << "&start=#{start}"
+      query_options[:size] = options[:page_size].nil? ? 100 : options[:page_size].to_i
+      query_options[:start] = (options[:page].to_i - 1) * query_options[:size]
     end
 
-    if options[:rank]
-      rank = normalize_rank(options[:rank])
-      rank_or_sort = api_version == '2013-01-01' ? 'sort' : 'rank'
-      url << "&#{rank_or_sort}=#{CGI.escape(rank)}"
-    end
-
-    begin
-      response = HTTParty.get(url)
-    rescue Exception => e
-      ae = Asari::SearchException.new("#{e.class}: #{e.message} (#{url})")
-      ae.set_backtrace e.backtrace
-      raise ae
-    end
-
-    unless response.response.code == "200"
-      raise Asari::SearchException.new("#{response.response.code}: #{response.response.msg} (#{url})")
-    end
-
-    Asari::Collection.new(response, page_size)
+    client.search(query_options)
   end
 
   # Public: Add an item to the index with the given ID.
@@ -139,8 +98,7 @@ class Asari
   def add_item(id, fields)
     return nil if self.class.mode == :sandbox
     query = create_item_query id, fields
-    client = Aws::CloudSearchDomain::Client.new(endpoint: "http://doc-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com")
-    client.upload_documents(query)
+    doc_request query
   end
 
   # Public: Update an item in the index based on its document ID.
@@ -185,35 +143,29 @@ class Asari
   # Internal: helper method: common logic for queries against the doc endpoint.
   #
   def doc_request(query)
-
-    endpoint = "http://doc-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com/#{api_version}/documents/batch"
-    options = { :body => request_query.to_json, :headers => { "Content-Type" => "application/json"} }
-
-    begin
-      response = HTTParty.post(endpoint, options)
-    rescue Exception => e
-      ae = Asari::DocumentUpdateException.new("#{e.class}: #{e.message}")
-      ae.set_backtrace e.backtrace
-      raise ae
-    end
-
-    unless response.response.code == "200"
-      raise Asari::DocumentUpdateException.new("#{response.response.code}: #{response.response.msg}")
-    end
-
-    nil
+    client = Aws::CloudSearchDomain::Client.new(endpoint: "http://doc-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com")
+    client.upload_documents(query)
   end
 
   def create_item_query(id, fields)
     return nil if self.class.mode == :sandbox
     result = {}
     result[:type] = 'add'
-    result[:id] = fields[:active_asari_id]
-    fields.each do |k,v|
+    result[:id] = fields[:id]
+    fields.each do |k, v|
+      next if k == :id
       fields[k] = convert_date_or_time(fields[k])
       fields[k] = "" if v.nil?
     end
     result[:fields] = fields
+    { documents: [result].to_json, content_type: 'application/json' }
+  end
+
+  def remove_item_query(id)
+    return nil if self.class.mode == :sandbox
+    result = {}
+    result[:type] = 'delete'
+    result[:id] = id
     { documents: [result].to_json, content_type: 'application/json' }
   end
 
@@ -223,7 +175,7 @@ class Asari
   #
   #     terms - a hash of the search query. %w(and or not) are reserved hash keys
   #             that build the logic of the query
-  def boolean_query(terms = {}, options = {})
+  def boolean_query(terms = {})
     reduce = lambda { |hash|
       hash.reduce("") do |memo, (key, value)|
         if %w(and or not).include?(key.to_s) && value.is_a?(Hash)

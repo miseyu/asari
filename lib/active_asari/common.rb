@@ -23,7 +23,6 @@ module ActiveAsari
   def self.active_asari_raw_search(domain, query, search_options = {})
     asari = Asari.new asari_domain_name(domain)
     fields = ACTIVE_ASARI_CONFIG[domain].map {|field| field.first.to_sym}
-    fields = fields.concat([:active_asari_id])
     search_options[:return_fields] = fields
     asari.search query, search_options
   end
