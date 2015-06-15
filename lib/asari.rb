@@ -188,10 +188,8 @@ class Asari
           elsif value.is_a?(Range)
             if [Time, Date, DateTime].any? { |target| value.first.is_a?(target) }
               memo += " #{key}:[#{convert_date_or_time(value.first)},#{convert_date_or_time(value.last)}]"
-            elsif value.first.is_a?(Integer)
-              memo += " #{key}:#{value}"
             else
-              memo += " #{key}:#{value.to_a.to_s}"
+              memo += " #{key}:[#{value.first},#{value.last}]"
             end
           elsif value.is_a?(String) && value =~ /\A\d*\.\.\d*\Z/
             memo += " #{key}:#{value}"
