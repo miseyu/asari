@@ -150,7 +150,7 @@ class Asari
     return nil if self.class.mode == :sandbox
     result = {}
     result[:type] = 'add'
-    result[:id] = fields[:id]
+    result[:id] = id
     fields.each do |k, v|
       next if k == :id
       fields[k] = convert_date_or_time(fields[k])

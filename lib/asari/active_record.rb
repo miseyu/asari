@@ -78,9 +78,6 @@ class Asari
       # Internal: method for adding a newly created item to the CloudSearch
       # index. Should probably only be called from asari_add_to_index above.
       def asari_add_item(obj)
-        if self.asari_when
-          return unless asari_should_index?(obj)
-        end
         data = self.asari_data_item(obj)
         self.asari_instance.add_item(obj.send(:id), data)
       rescue Asari::DocumentUpdateException => e
@@ -90,13 +87,7 @@ class Asari
       def asari_add_items(objects)
         amazon_items = []
         objects.each do |object|
-          if self.asari_when and asari_should_index?(object)
-            data = self.asari_data_item object
-            amazon_items << self.asari_instance.create_item_query(object.id, data)
-          elsif !self.asari_when
-            data = self.asari_data_item object
-            amazon_items << self.asari_instance.create_item_query(object.id, data)
-          end
+          amazon_items << self.asari_instance.create_item_query(object.id, data)
         end
         self.asari_instance.doc_request(amazon_items) if amazon_items.size > 0
       rescue Asari::DocumentUpdateException => e
@@ -116,12 +107,6 @@ class Asari
       # Internal: method for updating a freshly edited item to the CloudSearch
       # index. Should probably only be called from asari_update_in_index above.
       def asari_update_item(obj)
-        if self.asari_when
-          unless asari_should_index?(obj)
-            self.asari_remove_item(obj)
-            return
-          end
-        end
         data = self.asari_data_item(obj)
         self.asari_instance.update_item(obj.send(:id), data)
       rescue Asari::DocumentUpdateException => e
@@ -145,17 +130,6 @@ class Asari
         self.asari_instance.remove_item(obj.send(:id))
       rescue Asari::DocumentUpdateException => e
         self.asari_on_error(e)
-      end
-
-      # Internal: method for looking at the when method/Proc (if defined) to
-      #   determine whether this model should be indexed.
-      def asari_should_index?(object)
-        when_test = self.asari_when
-        if when_test.is_a? Proc
-          return when_test.call(object)
-        else
-          return object.send(when_test)
-        end
       end
 
       # Public: method for searching the index for the specified term and
