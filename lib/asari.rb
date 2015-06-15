@@ -76,6 +76,8 @@ class Asari
       query_options[:start] = (options[:page].to_i - 1) * query_options[:size]
     end
 
+    query_options[:cursor] = options[:cursor] if options[:cursor]
+
     client.search(query_options)
   end
 
