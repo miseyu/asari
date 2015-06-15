@@ -184,7 +184,7 @@ class Asari
           if value.is_a?(Integer)
             memo += " #{key}:#{value}"
           elsif value.is_a?(Range)
-            if value.first.is_a?(Time)
+            if [Time, Date, DateTime].any? { |target| value.first.is_a?(target) }
               memo += " #{key}:[#{convert_date_or_time(value.first)},#{convert_date_or_time(value.last)}]"
             elsif value.first.is_a?(Integer)
               memo += " #{key}:#{value}"
@@ -215,7 +215,7 @@ class Asari
   end
 
   def convert_date_or_time(obj)
-    return obj unless [Time, Date, DateTime].include?(obj.class)
+    return obj unless [Time, Date, DateTime].any? { |target| obj.is_a?(target) }
     obj.to_time.utc.strftime('%FT%H:%M:%SZ')
   end
 
