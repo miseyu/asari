@@ -187,6 +187,8 @@ class Asari
           elsif value.is_a?(Range)
             if value.first.is_a?(Time)
               memo += " #{key}:[#{convert_date_or_time(value.first)},#{convert_date_or_time(value.last)}]"
+            elsif value.first.is_a?(Integer)
+              memo += " #{key}:#{value}"
             else
               memo += " #{key}:#{value.to_a.to_s}"
             end
