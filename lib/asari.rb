@@ -70,8 +70,9 @@ class Asari
     client = Aws::CloudSearchDomain::Client.new(endpoint: "http://search-#{search_domain}.#{aws_region}.cloudsearch.amazonaws.com")
     query_options = { query_parser: 'structured', query: boolean_query(options[:filter]) }
 
+    query_options[:size] = options[:size].nil? ? 100 : options[:size].to_i
+
     if options[:page]
-      query_options[:size] = options[:page_size].nil? ? 100 : options[:page_size].to_i
       query_options[:start] = (options[:page].to_i - 1) * query_options[:size]
     end
 
