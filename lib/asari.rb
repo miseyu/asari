@@ -58,7 +58,6 @@ class Asari
   # Examples:
   #
   #     @asari.search(filter: { and: { type: 'donuts' }}) #=> ["13,"28","35","50"]
-  #     @asari.search("fritters", filter: { and: { type: 'donuts' }}) #=> ["13"]
   #
   # Returns: An Asari::Collection containing all document IDs in the system that match the
   #   specified search term. If no results are found, an empty Asari::Collection is
@@ -125,8 +124,6 @@ class Asari
   # Examples:
   #
   #     @asari.search("fritters") #=> ["13","28"]
-  #     @asari.remove_item("13") #=> nil
-  #     @asari.search("fritters") #=> ["28"]
   #     @asari.remove_item("13") #=> nil
   #
   # Returns: nil if the request is successful (note that asking the index to
