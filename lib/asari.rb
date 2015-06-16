@@ -185,7 +185,7 @@ class Asari
             memo += " #{key}:#{value}"
           elsif value.is_a?(Range)
             if [Time, Date, DateTime].any? { |target| value.first.is_a?(target) }
-              memo += " #{key}:[#{convert_date_or_time(value.first)},#{convert_date_or_time(value.last)}]"
+              memo += " #{key}:['#{convert_date_or_time(value.first)}','#{convert_date_or_time(value.last)}']"
             else
               memo += " #{key}:[#{value.first},#{value.last}]"
             end
